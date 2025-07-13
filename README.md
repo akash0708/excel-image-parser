@@ -38,7 +38,7 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 ### Upload Interface
 
-![Upload Interface](./public/dragndrop.png.png)
+![Upload Interface](./public/dragndrop.png)
 _Drag & drop or click to upload Excel files_
 
 ## Tech Stack
