@@ -1,103 +1,169 @@
-import Image from "next/image";
+"use client";
+import React, { useState, useEffect } from "react";
+import FileUploadZone from "../components/FileUploadZone";
+import ImagePreviewGrid from "../components/ImagePreviewGrid";
+import ActionButtons from "../components/ActionButtons";
+import ErrorMessage from "../components/ErrorMessage";
+import Footer from "../components/Footer";
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [file, setFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [imagePreviews, setImagePreviews] = useState<
+    { name: string; preview: string }[] | null
+  >(null);
+  const [editedNames, setEditedNames] = useState<Record<string, string>>({});
+  const [downloadReady, setDownloadReady] = useState(false);
+  const [isClient, setIsClient] = useState(false);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  const handleFileSelect = (selectedFile: File) => {
+    setFile(selectedFile);
+    setImagePreviews(null);
+    setDownloadReady(false);
+  };
+
+  const handleFileError = (errorMessage: string) => {
+    setError(errorMessage);
+  };
+
+  const handlePreview = async () => {
+    setError(null);
+    setImagePreviews(null);
+    setDownloadReady(false);
+    if (!file) {
+      setError("Please select an .xlsx file.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await fetch("/api/process?preview=1", {
+        method: "POST",
+        body: formData,
+      });
+      if (!response.ok) {
+        let errorMsg = "Failed to process file";
+        try {
+          const data = await response.json();
+          errorMsg = data.error || errorMsg;
+        } catch {}
+        setError(errorMsg);
+        return;
+      }
+      const data = await response.json();
+      setImagePreviews(data.images || []);
+      setDownloadReady(true);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message || "An error occurred");
+      } else {
+        setError("An error occurred");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleNameChange = (originalName: string, newName: string) => {
+    setEditedNames((prev) => ({ ...prev, [originalName]: newName }));
+  };
+
+  const handleDownload = async () => {
+    if (!isClient) return;
+
+    setError(null);
+    setLoading(true);
+    try {
+      const formData = new FormData();
+      if (file) formData.append("file", file);
+      if (imagePreviews) {
+        const mapping: Record<string, string> = {};
+        imagePreviews.forEach((img) => {
+          const newName = editedNames[img.name]?.trim();
+          if (newName && newName !== img.name) {
+            mapping[img.name] = newName;
+          }
+        });
+        formData.append("nameMapping", JSON.stringify(mapping));
+      }
+      const response = await fetch("/api/process", {
+        method: "POST",
+        body: formData,
+      });
+      if (!response.ok) {
+        let errorMsg = "Failed to process file";
+        try {
+          const data = await response.json();
+          errorMsg = data.error || errorMsg;
+        } catch {}
+        setError(errorMsg);
+        return;
+      }
+      const blob = await response.blob();
+
+      // Only use browser APIs on client side
+      if (typeof window !== "undefined") {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "images.zip";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+      }
+
+      setFile(null);
+      setImagePreviews(null);
+      setEditedNames({});
+      setDownloadReady(false);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message || "An error occurred");
+      } else {
+        setError("An error occurred");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#f7f8fa] p-4">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 flex flex-col gap-6 border border-gray-200">
+        <h1 className="text-2xl font-extrabold text-gray-900 text-center mb-2 tracking-tight">
+          Excel Image Extractor
+        </h1>
+
+        <FileUploadZone
+          file={file}
+          loading={loading}
+          onFileSelect={handleFileSelect}
+          onError={handleFileError}
+        />
+        <ActionButtons
+          file={file}
+          loading={loading}
+          onPreview={handlePreview}
+        />
+        <ImagePreviewGrid
+          images={imagePreviews}
+          editedNames={editedNames}
+          loading={loading}
+          downloadReady={downloadReady}
+          isClient={isClient}
+          onNameChange={handleNameChange}
+          onDownload={handleDownload}
+        />
+        <ErrorMessage error={error} />
+        <Footer />
+      </div>
     </div>
   );
 }
